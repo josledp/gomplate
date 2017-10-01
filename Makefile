@@ -118,4 +118,16 @@ gen-docs: docs/themes/hugo-material-docs
 lint:
 	gometalinter -j 1 --vendor --deadline 70s --disable gotype --enable gofmt --enable goimports --enable misspell --enable unused --disable gas
 
+release: tag-release build-release push-changelog
+
+version.txt:
+	@go run version_bump.go
+
+tag-release: version.txt
+	git tag -a v2.0.1 -m "Releasing v2.0.1" && git push --tags
+
+push-changelog: gen-changelog
+	@echo "TODO - use chandler maybe?"
+
 .PHONY: gen-changelog clean test build-x compress-all build-release build build-integration-image test-integration-docker gen-docs lint
+.DELETE_ON_ERROR:
