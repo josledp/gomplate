@@ -17,7 +17,7 @@ import (
 
 func testTemplate(g *Gomplate, template string) string {
 	var out bytes.Buffer
-	g.RunTemplate(&input{"testtemplate", template}, &out)
+	g.RunTemplate(&input{name: "testtemplate", contents: template, target: &out})
 	return out.String()
 }
 
