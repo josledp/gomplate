@@ -6,30 +6,56 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
-	"text/template"
+	gotemplate "text/template"
 )
 
-// input - models an input file...
-type input struct {
+// tplate - models a template file...
+type tplate struct {
 	name     string
 	target   io.Writer
 	contents string
 }
 
-func (t *input) toGoTemplate(g *Gomplate) (*template.Template, error) {
-	tmpl := template.New(t.name)
+func (t *tplate) toGoTemplate(g *Gomplate) (*gotemplate.Template, error) {
+	tmpl := gotemplate.New(t.name)
 	tmpl.Option("missingkey=error")
 	tmpl.Funcs(g.funcMap)
 	tmpl.Delims(g.leftDelim, g.rightDelim)
 	return tmpl.Parse(t.contents)
 }
 
+// loadContents - reads the template in _once_ if it hasn't yet been read. Uses the name!
+func (t *tplate) loadContents() error {
+	if t.contents == "" {
+		contents, err := readInput(t.name)
+		if err != nil {
+			return err
+		}
+		t.contents = contents
+	}
+	return nil
+}
+
+func (t *tplate) addTarget(outFile string) error {
+	if t.target == nil {
+		target, err := openOutFile(outFile)
+		if err != nil {
+			return err
+		}
+		addCleanupHook(func() {
+			// nolint: errcheck
+			target.Close()
+		})
+		t.target = target
+	}
+	return nil
+}
+
 // gatherTemplates - gather and prepare input template(s) and output file(s) for rendering
-func gatherTemplates(o *GomplateOpts) (ins []*input, err error) {
+func gatherTemplates(o *GomplateOpts) (templates []*tplate, err error) {
 	// the arg-provided input string gets a special name
 	if o.input != "" {
-		o.inputFiles = []string{"<arg>"}
-		ins = []*input{{
+		templates = []*tplate{{
 			name:     "<arg>",
 			contents: o.input,
 		}}
@@ -37,54 +63,37 @@ func gatherTemplates(o *GomplateOpts) (ins []*input, err error) {
 
 	// input dirs presume output dirs are set too
 	if o.inputDir != "" {
-		excludes, err := executeCombinedGlob(o.excludeGlob)
-		if err != nil {
-			return nil, err
-		}
-
-		o.inputFiles, o.outputFiles, err = walkDir(o.inputDir, o.outputDir, excludes)
+		o.inputFiles, o.outputFiles, err = walkDir(o.inputDir, o.outputDir, o.excludeGlob)
 		if err != nil {
 			return nil, err
 		}
 	}
 
-	ins = make([]*input, len(o.inputFiles))
+	if len(templates) == 0 {
+		templates = make([]*tplate, len(o.inputFiles))
+		for i := range templates {
+			templates[i] = &tplate{name: o.inputFiles[i]}
+		}
+	}
 
 	if len(o.outputFiles) == 0 {
 		o.outputFiles = []string{"-"}
 	}
 
-	for i, filename := range o.inputFiles {
-		if ins[i] == nil {
-			ins[i] = &input{}
+	for i, t := range templates {
+		if err := t.loadContents(); err != nil {
+			return nil, err
 		}
-		if ins[i].name == "" {
-			ins[i].name = filename
-		}
-		if ins[i].contents == "" {
-			contents, err := readInput(filename)
-			if err != nil {
-				return nil, err
-			}
-			ins[i].contents = contents
-		}
-		if ins[i].target == nil {
-			target, err := openOutFile(o.outputFiles[i])
-			if err != nil {
-				return nil, err
-			}
-			addCleanupHook(func() {
-				// nolint: errcheck
-				target.Close()
-			})
-			ins[i].target = target
+
+		if err := t.addTarget(o.outputFiles[i]); err != nil {
+			return nil, err
 		}
 	}
 
-	return ins, nil
+	return templates, nil
 }
 
-func walkDir(dir, outDir string, excludes []string) ([]string, []string, error) {
+func walkDir(dir, outDir string, excludeGlob []string) ([]string, []string, error) {
 	dir = filepath.Clean(dir)
 	outDir = filepath.Clean(outDir)
 
@@ -99,6 +108,11 @@ func walkDir(dir, outDir string, excludes []string) ([]string, []string, error) 
 	}
 
 	if err = os.MkdirAll(outDir, si.Mode()); err != nil {
+		return nil, nil, err
+	}
+
+	excludes, err := executeCombinedGlob(excludeGlob)
+	if err != nil {
 		return nil, nil, err
 	}
 

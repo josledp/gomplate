@@ -2,20 +2,20 @@ package main
 
 import (
 	"io"
-	"text/template"
+	gotemplate "text/template"
 
 	"github.com/hairyhenderson/gomplate/data"
 )
 
 // Gomplate -
 type Gomplate struct {
-	funcMap    template.FuncMap
+	funcMap    gotemplate.FuncMap
 	leftDelim  string
 	rightDelim string
 }
 
 // RunTemplate -
-func (g *Gomplate) RunTemplate(t *input) error {
+func (g *Gomplate) RunTemplate(t *tplate) error {
 	context := &Context{}
 	tmpl, err := t.toGoTemplate(g)
 	if err != nil {

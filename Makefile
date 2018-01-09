@@ -116,6 +116,6 @@ gen-docs: docs/themes/hugo-material-docs
 	cd docs/; hugo
 
 lint:
-	gometalinter -j 1 --vendor --deadline 70s --disable gotype --enable gofmt --enable goimports --enable misspell --enable unused --disable gas
+	gometalinter -j $(shell nproc) --vendor --deadline 120s --disable gotype --enable gofmt --enable goimports --enable misspell --enable unused --disable gas
 
 .PHONY: gen-changelog clean test build-x compress-all build-release build build-integration-image test-integration-docker gen-docs lint

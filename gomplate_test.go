@@ -6,7 +6,7 @@ import (
 	"os"
 	"testing"
 
-	"text/template"
+	gotemplate "text/template"
 
 	"github.com/hairyhenderson/gomplate/aws"
 	"github.com/hairyhenderson/gomplate/conv"
@@ -17,13 +17,13 @@ import (
 
 func testTemplate(g *Gomplate, template string) string {
 	var out bytes.Buffer
-	g.RunTemplate(&input{name: "testtemplate", contents: template, target: &out})
+	g.RunTemplate(&tplate{name: "testtemplate", contents: template, target: &out})
 	return out.String()
 }
 
 func TestGetenvTemplates(t *testing.T) {
 	g := &Gomplate{
-		funcMap: template.FuncMap{
+		funcMap: gotemplate.FuncMap{
 			"getenv": env.Getenv,
 			"bool":   conv.Bool,
 		},
@@ -35,7 +35,7 @@ func TestGetenvTemplates(t *testing.T) {
 
 func TestBoolTemplates(t *testing.T) {
 	g := &Gomplate{
-		funcMap: template.FuncMap{
+		funcMap: gotemplate.FuncMap{
 			"bool": conv.Bool,
 		},
 	}
@@ -48,7 +48,7 @@ func TestBoolTemplates(t *testing.T) {
 func TestEc2MetaTemplates(t *testing.T) {
 	createGomplate := func(status int, body string) (*Gomplate, *httptest.Server) {
 		server, ec2meta := aws.MockServer(status, body)
-		return &Gomplate{funcMap: template.FuncMap{"ec2meta": ec2meta.Meta}}, server
+		return &Gomplate{funcMap: gotemplate.FuncMap{"ec2meta": ec2meta.Meta}}, server
 	}
 
 	g, s := createGomplate(404, "")
@@ -67,7 +67,7 @@ func TestEc2MetaTemplates_WithJSON(t *testing.T) {
 	server, ec2meta := aws.MockServer(200, `{"foo":"bar"}`)
 	defer server.Close()
 	g := &Gomplate{
-		funcMap: template.FuncMap{
+		funcMap: gotemplate.FuncMap{
 			"ec2meta":    ec2meta.Meta,
 			"ec2dynamic": ec2meta.Dynamic,
 			"json":       data.JSON,
@@ -80,7 +80,7 @@ func TestEc2MetaTemplates_WithJSON(t *testing.T) {
 
 func TestJSONArrayTemplates(t *testing.T) {
 	g := &Gomplate{
-		funcMap: template.FuncMap{
+		funcMap: gotemplate.FuncMap{
 			"jsonArray": data.JSONArray,
 		},
 	}
@@ -91,7 +91,7 @@ func TestJSONArrayTemplates(t *testing.T) {
 
 func TestYAMLTemplates(t *testing.T) {
 	g := &Gomplate{
-		funcMap: template.FuncMap{
+		funcMap: gotemplate.FuncMap{
 			"yaml":      data.YAML,
 			"yamlArray": data.YAMLArray,
 		},
@@ -104,7 +104,7 @@ func TestYAMLTemplates(t *testing.T) {
 
 func TestSliceTemplates(t *testing.T) {
 	g := &Gomplate{
-		funcMap: template.FuncMap{
+		funcMap: gotemplate.FuncMap{
 			"slice": conv.Slice,
 		},
 	}
@@ -115,7 +115,7 @@ func TestSliceTemplates(t *testing.T) {
 
 func TestHasTemplate(t *testing.T) {
 	g := &Gomplate{
-		funcMap: template.FuncMap{
+		funcMap: gotemplate.FuncMap{
 			"yaml": data.YAML,
 			"has":  conv.Has,
 		},
@@ -141,7 +141,7 @@ func TestCustomDelim(t *testing.T) {
 	g := &Gomplate{
 		leftDelim:  "[",
 		rightDelim: "]",
-		funcMap:    template.FuncMap{},
+		funcMap:    gotemplate.FuncMap{},
 	}
 	assert.Equal(t, "hi", testTemplate(g, `[print "hi"]`))
 }
